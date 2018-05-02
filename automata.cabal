@@ -13,6 +13,26 @@ build-type:          Simple
 cabal-version:       >=1.10
 extra-source-files:  README.md
 
+library
+  hs-source-dirs:      src
+  exposed-modules:     FSA
+  build-depends:       base >= 4.7 && < 5
+  default-language:    Haskell2010
+  ghc-options:         -O2 -Werror
+  ghc-options:         -Wall -fwarn-tabs -fwarn-incomplete-record-updates -fwarn-unused-do-bind
+
+test-suite faods-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , automata
+                     , hspec
+                     , QuickCheck
+  ghc-options:         -Werror
+  ghc-options:         -Wall -fwarn-tabs -fwarn-incomplete-record-updates -fwarn-unused-do-bind -fno-warn-type-defaults
+  default-language:    Haskell2010
+
 executable automata
   hs-source-dirs:      src
   main-is:             Main.hs
