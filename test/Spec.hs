@@ -23,6 +23,12 @@ main = hspec $ do
   describe "FSA.star" $ do
     it "returns the Kleene closure of an FSA" $ do
       property' $ \w n -> star (word w) `accepts` concat (replicate n w)
+  describe "FSA.removeEpsilonTransitions" $ do
+    it "returns an equivalent FSA only with epsilon transitions removed" $ do
+      property' $ \ws ->
+        let fsaU = foldr (union . word) (word "") ws
+            fsaC = foldr (concatenate . word) (word "") ws
+        in  and $ accepts fsaC (concat ws) : map (accepts fsaU) ("" : ws)
 
 property' :: Testable prop => prop -> Property
 property' = withMaxSuccess 1000 . property

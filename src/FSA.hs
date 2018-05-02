@@ -68,6 +68,17 @@ star fsa =
               [(t, "", q) | t <- terminal fsa]
           }
 
+removeEpsilonTransitions :: FSA -> FSA
+removeEpsilonTransitions fsa =
+  let c' = transitiveClosure $ map (\(p, _, q) -> (p, q)) $ delta fsa
+      c p = map snd $ filter (p . fst) c'
+  in  fsa { initial = c (`elem` initial fsa)
+          , delta = [(p, w, q) |
+                      (p, w, r) <- delta fsa, w /= "",
+                      q <- c (== r)
+                    ]
+          }
+
 -- | Rename the states in a given FSA (increase them with n)
 rename :: FSA -> Int -> FSA
 rename fsa n = fsa { states = states fsa + n
@@ -75,3 +86,15 @@ rename fsa n = fsa { states = states fsa + n
                    , terminal = map (+ n) $ terminal fsa
                    , delta = map (\(p, w, q) -> (p+n, w, q+n)) $ delta fsa
                    }
+
+-- | Transitive closure of a relation
+-- (rather uneffective)
+transitiveClosure :: Eq a => [(a, a)] -> [(a, a)]
+transitiveClosure r =
+  let r' = [(x, y) |
+             (x, z) <- r,
+             y <- map snd $ filter ((== z) . fst) r
+           ]
+  in  if length r' == length r
+      then r
+      else transitiveClosure r'
