@@ -21,7 +21,7 @@ library
   ghc-options:         -O2 -Werror
   ghc-options:         -Wall -fwarn-tabs -fwarn-incomplete-record-updates -fwarn-unused-do-bind
 
-test-suite faods-test
+test-suite automata-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
