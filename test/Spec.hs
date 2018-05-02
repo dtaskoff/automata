@@ -10,3 +10,8 @@ main = hspec $ do
       property $ \w -> word w `accepts` w
     it "returns False if the given automaton doesn't accept the given word" $ do
       property $ \w w' -> w == w' || not (word w `accepts` w')
+  describe "FSA.union" $ do
+    it "returns the union of two FSA" $ do
+      property $ \w w' ->
+        let fsa = word w `union` word w'
+        in  fsa `accepts` w && fsa `accepts` w'

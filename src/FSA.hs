@@ -1,7 +1,7 @@
 module FSA where
 
 import Prelude hiding (Word)
-import Data.List (stripPrefix)
+import Data.List (nub, stripPrefix)
 import Data.Maybe (isJust, fromJust)
 
 
@@ -35,3 +35,21 @@ accepts fsa w = any (`elem` terminal fsa) $ concatMap (go w) $ initial fsa
             (p', u, q) <- delta fsa, p' == p,
             let mv = stripPrefix w' u, isJust mv
           ]
+
+union :: FSA -> FSA -> FSA
+union fsa fsa' =
+  let fsa'' = rename fsa' (states fsa)
+  in  FSA { alphabet = nub $ alphabet fsa ++ alphabet fsa''
+          , states = states fsa + states fsa''
+          , initial = initial fsa ++ initial fsa''
+          , terminal = terminal fsa ++ terminal fsa''
+          , delta = delta fsa ++ delta fsa''
+          }
+
+-- | Rename the states in a given FSA (increase them with n)
+rename :: FSA -> Int -> FSA
+rename fsa n = fsa { states = states fsa + n
+                   , initial = map (+ n) $ initial fsa
+                   , terminal = map (+ n) $ terminal fsa
+                   , delta = map (\(p, w, q) -> (p+n, w, q+n)) $ delta fsa
+                   }
