@@ -54,7 +54,7 @@ concatenate fsa fsa' =
           , initial = initial fsa
           , terminal = terminal fsa''
           , delta = delta fsa ++ delta fsa'' ++
-              [(f, "", i) | f <- terminal fsa, i <- initial fsa'']
+              [(t, "", i) | t <- terminal fsa, i <- initial fsa'']
           }
 
 star :: FSA -> FSA
