@@ -46,6 +46,17 @@ union fsa fsa' =
           , delta = delta fsa ++ delta fsa''
           }
 
+concatenate :: FSA -> FSA -> FSA
+concatenate fsa fsa' =
+  let fsa'' = rename fsa' (states fsa)
+  in  FSA { alphabet = nub $ alphabet fsa ++ alphabet fsa''
+          , states = states fsa + states fsa'
+          , initial = initial fsa
+          , terminal = terminal fsa''
+          , delta = delta fsa ++ delta fsa'' ++
+              [(f, "", i) | f <- terminal fsa, i <- initial fsa'']
+          }
+
 -- | Rename the states in a given FSA (increase them with n)
 rename :: FSA -> Int -> FSA
 rename fsa n = fsa { states = states fsa + n

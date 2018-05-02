@@ -15,3 +15,8 @@ main = hspec $ do
       property $ \w w' ->
         let fsa = word w `union` word w'
         in  fsa `accepts` w && fsa `accepts` w'
+  describe "FSA.concatenate" $ do
+    it "returns the concatenation of two FSA" $ do
+      property $ \w w' ->
+        let fsa = word w `concatenate` word w'
+        in  fsa `accepts` (w ++ w')
