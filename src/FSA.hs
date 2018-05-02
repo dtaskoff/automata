@@ -57,6 +57,17 @@ concatenate fsa fsa' =
               [(f, "", i) | f <- terminal fsa, i <- initial fsa'']
           }
 
+star :: FSA -> FSA
+star fsa =
+  let q = states fsa
+  in  fsa { states = states fsa + 1
+          , initial = [q]
+          , terminal = [q]
+          , delta = delta fsa ++
+              [(q, "", i) | i <- initial fsa] ++
+              [(t, "", q) | t <- terminal fsa]
+          }
+
 -- | Rename the states in a given FSA (increase them with n)
 rename :: FSA -> Int -> FSA
 rename fsa n = fsa { states = states fsa + n

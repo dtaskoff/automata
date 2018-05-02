@@ -20,6 +20,9 @@ main = hspec $ do
       property' $ \w w' ->
         let fsa = word w `concatenate` word w'
         in  fsa `accepts` (w ++ w')
+  describe "FSA.star" $ do
+    it "returns the Kleene closure of an FSA" $ do
+      property' $ \w n -> star (word w) `accepts` concat (replicate n w)
 
 property' :: Testable prop => prop -> Property
 property' = withMaxSuccess 1000 . property
