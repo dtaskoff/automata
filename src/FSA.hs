@@ -33,7 +33,7 @@ accepts fsa w = any (`elem` terminal fsa) $ concatMap (go w) $ initial fsa
         go w' p = concatMap (uncurry go) $
           [(fromJust mv, q) |
             (p', u, q) <- delta fsa, p' == p,
-            let mv = stripPrefix w' u, isJust mv
+            let mv = stripPrefix u w', isJust mv
           ]
 
 union :: FSA -> FSA -> FSA
