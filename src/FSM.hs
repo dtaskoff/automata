@@ -90,3 +90,22 @@ removeEpsilonTransitions fsm =
   in  fsm { initial = foldMap cf $ initial fsm
           , delta = M.filter (not . M.null) delta'
           }
+
+trim :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
+trim fsm =
+  let r = transitiveClosure [ (p, q) | (p, aqs) <- M.toList $ delta fsm
+                            , q <- concatMap S.toList aqs
+                            ]
+      accessible = initial fsm `S.union` foldMap (lift r) (initial fsm)
+      coaccessible = terminal fsm `S.union`
+        S.fromMap (M.map (const ()) (M.filter (not . null . (`S.intersection` terminal fsm)) r))
+      states' = accessible `S.intersection` coaccessible
+      initial' = initial fsm `S.intersection` states'
+      terminal' = terminal fsm `S.intersection` states'
+      names = M.fromList $ zip (S.toList states') [0..]
+  in  rename (names M.!) fsm { states = S.size states'
+                             , initial = initial'
+                             , terminal = terminal'
+                             , delta = M.map (M.map (S.filter (`S.member` states'))) .
+                                 M.filterWithKey (const . (`S.member` states')) $ delta fsm
+                             }
