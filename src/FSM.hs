@@ -1,74 +1,94 @@
 module FSM where
 
-import Data.List (nub, stripPrefix)
-import Data.Maybe (isJust, fromJust)
+import Data.Hashable (Hashable)
+import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet as S
+import Data.List (foldl1')
 
 
+type Map k v = M.HashMap k v
+type Set a = S.HashSet a
 type State = Int
-type Transition a = (State, a, State)
+type TransitionTable a = Map State (Map a (Set State))
+
+-- | Construct a transition table containing all elements from a list of transition tables.
+unions' :: (Eq a, Hashable a) => [TransitionTable a] -> TransitionTable a
+unions' = foldl1' (M.unionWith (M.unionWith S.union))
+{-# INLINE unions' #-}
 
 data FSM a = FSM
   { states :: Int
   -- ^ the number of states
   -- I'll assume that FSMs have states 0..states-1
-  , initial :: [State]
-  , terminal :: [State]
-  , delta :: [Transition a]
+  , initial :: Set State
+  , terminal :: Set State
+  , delta :: TransitionTable a
   } deriving Show
 
 
--- | An automaton which accepts a single word
-word :: a -> FSM a
-word a = FSM 2 [0] [1] [(0, a, 1)]
+-- | A machine which traverses only a single word
+word :: (Eq a, Hashable a) => a -> FSM a
+word a = FSM 
+  { states = 2
+  , initial = S.singleton 0
+  , terminal = S.singleton 1
+  , delta = M.singleton 0 $ M.singleton a $ S.singleton 1
+  }
 
 -- | Regular opirations on FSMs
-union :: FSM a -> FSM a -> FSM a
+union :: (Eq a, Hashable a) => FSM a -> FSM a -> FSM a
 union fsm fsm' =
   let fsm'' = rename fsm' (states fsm)
   in  FSM { states = states fsm + states fsm''
-          , initial = initial fsm ++ initial fsm''
-          , terminal = terminal fsm ++ terminal fsm''
-          , delta = delta fsm ++ delta fsm''
+          , initial = initial fsm `S.union` initial fsm''
+          , terminal = terminal fsm `S.union` terminal fsm''
+          , delta = unions' [ delta fsm, delta fsm'' ]
           }
 
-concatenate :: Monoid a => FSM a -> FSM a -> FSM a
+concatenate :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a -> FSM a
 concatenate fsm fsm' =
   let fsm'' = rename fsm' (states fsm)
   in  FSM { states = states fsm + states fsm'
           , initial = initial fsm
           , terminal = terminal fsm''
-          , delta = delta fsm ++ delta fsm'' ++
-              [(t, mempty, i) | t <- terminal fsm, i <- initial fsm'']
+          , delta = unions' [ delta fsm, delta fsm''
+                            , let ts = M.singleton mempty $ initial fsm''
+                              in  M.fromList [(t, ts) | t <- S.toList $ terminal fsm]
+                            ]
           }
 
-star :: Monoid a => FSM a -> FSM a
+star :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
 star fsm =
   let q = states fsm
+      sq = S.singleton q
   in  fsm { states = states fsm + 1
-          , initial = [q]
-          , terminal = [q]
-          , delta = delta fsm ++
-              [(q, mempty, i) | i <- initial fsm] ++
-              [(t, mempty, q) | t <- terminal fsm]
+          , initial = sq
+          , terminal = sq
+          , delta = unions' [ delta fsm
+                            , M.singleton q $ M.singleton mempty $ initial fsm
+                            , let eq = M.singleton mempty sq
+                              in  M.fromList $ [(t, eq) | t <- S.toList $ terminal fsm]
+                            ]
           }
 
-removeEpsilonTransitions :: (Eq a, Monoid a) => FSM a -> FSM a
-removeEpsilonTransitions fsa =
-  let c' = transitiveClosure $ map (\(p, _, q) -> (p, q)) $ delta fsa
-      c p = map snd $ filter (p . fst) c'
-  in  fsa { initial = c (`elem` initial fsa)
-          , delta = [(p, w, q) |
-                      (p, w, r) <- delta fsa, w /= mempty,
-                      q <- c (== r)
-                    ]
+removeEpsilonTransitions :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
+removeEpsilonTransitions fsm =
+  let c' = transitiveClosure [ (p, q) | (p, aqs) <- M.toList $ delta fsm
+                             , q <- S.toList $ M.lookupDefault S.empty mempty aqs
+                             ]
+      c = \p -> S.fromList (map snd (filter ((== p) . fst) c'))
+      delta' = M.map (M.map (foldMap c) . M.filterWithKey (const . (/= mempty))) $ delta fsm
+  in  fsm { initial = foldMap c $ initial fsm
+          , delta = M.filter (not . M.null) $ delta'
           }
 
--- | Rename the states in a given FSA (increase them with n)
-rename :: FSM a -> Int -> FSM a
+-- | Rename the states in a given FSM (increase them with n)
+rename :: (Eq a, Hashable a) => FSM a -> Int -> FSM a
 rename fsm n = fsm { states = states fsm + n
-                   , initial = map (+ n) $ initial fsm
-                   , terminal = map (+ n) $ terminal fsm
-                   , delta = map (\(p, w, q) -> (p+n, w, q+n)) $ delta fsm
+                   , initial = S.map (+ n) $ initial fsm
+                   , terminal = S.map (+ n) $ terminal fsm
+                   , delta = let delta' = M.map (M.map (S.map (+ n))) $ delta fsm
+                             in  M.fromList . map (\(p, m) -> (p+n, m)) $ M.toList delta'
                    }
 
 -- | Transitive closure of a relation
