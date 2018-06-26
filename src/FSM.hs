@@ -40,7 +40,7 @@ word a = FSM
 -- | Regular opirations on FSMs
 union :: (Eq a, Hashable a) => FSM a -> FSM a -> FSM a
 union fsm fsm' =
-  let fsm'' = rename fsm' (states fsm)
+  let fsm'' = rename (+ states fsm) fsm'
   in  FSM { states = states fsm + states fsm''
           , initial = initial fsm `S.union` initial fsm''
           , terminal = terminal fsm `S.union` terminal fsm''
@@ -49,8 +49,8 @@ union fsm fsm' =
 
 concatenate :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a -> FSM a
 concatenate fsm fsm' =
-  let fsm'' = rename fsm' (states fsm)
-  in  FSM { states = states fsm + states fsm'
+  let fsm'' = rename (+ states fsm) fsm'
+  in  FSM { states = states fsm + states fsm''
           , initial = initial fsm
           , terminal = terminal fsm''
           , delta = unions' [ delta fsm, delta fsm''
@@ -73,20 +73,19 @@ star fsm =
                             ]
           }
 
--- | Rename the states in a given FSM (increase them with n)
-rename :: (Eq a, Hashable a) => FSM a -> Int -> FSM a
-rename fsm n = fsm { states = states fsm + n
-                   , initial = S.map (+ n) $ initial fsm
-                   , terminal = S.map (+ n) $ terminal fsm
-                   , delta = let delta' = M.map (M.map (S.map (+ n))) $ delta fsm
-                             in  M.fromList . map (\(p, m) -> (p+n, m)) $ M.toList delta'
-                  }
+-- | Rename the states in a given FSM given a mapping function
+rename :: (Eq a, Hashable a) => (State -> State) -> FSM a -> FSM a
+rename f fsm = fsm { initial = S.map f $ initial fsm
+                   , terminal = S.map f $ terminal fsm
+                   , delta = let delta' = M.map (M.map (S.map f)) $ delta fsm
+                             in  M.fromList . map (\(p, m) -> (f p, m)) $ M.toList delta'
+                   }
  
 removeEpsilonTransitions :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
 removeEpsilonTransitions fsm =
   let cf = lift $ transitiveClosure [ (p, q) | (p, aqs) <- M.toList $ delta fsm
                                     , q <- S.toList $ M.lookupDefault S.empty mempty aqs
-                             ]
+                                    ]
       delta' = M.map (M.map (foldMap cf) . M.filterWithKey (const . (/= mempty))) $ delta fsm
   in  fsm { initial = foldMap cf $ initial fsm
           , delta = M.filter (not . M.null) delta'
