@@ -1,9 +1,11 @@
 import FSM
 import FSA
 import FST
+import Combinators
 
 import Test.Hspec
 import Test.QuickCheck
+import Data.List (nub)
 
 
 main :: IO ()
@@ -52,6 +54,21 @@ main = hspec $ do
             vs = fst `transduce` u'
             v'' = if null u' then vs !! n else head vs
         in  n < 0 || v' == v''
+  -- | Description of Combinators
+  describe "Combinators.allOver" $ do
+    it "returns an automaton accepting all words over an alphabet" $ do
+      property' $ \alphabet w ->
+        let alphabet' = nub alphabet
+            fsa = allOver alphabet
+        in  null alphabet' || or (map (`notElem` alphabet') w) || fsa `accepts` w
+  describe "Combinators.optionalReplace" $ do
+    it "optional replacement transducer" $ do
+      property' $ \alphabet w@(u, v) ->
+        let alphabet' = nub alphabet
+            fst = optionalReplace alphabet' $ word w
+            u' = if u == v then [u] else [u, v]
+            u'' = fst `transduce` u
+        in  null alphabet' || any (`notElem` alphabet) u || all (`elem` u'') u'
 
 property' :: Testable prop => prop -> Property
 property' = withMaxSuccess 1000 . property

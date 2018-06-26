@@ -47,6 +47,9 @@ union fsm fsm' =
           , delta = unions' [ delta fsm, delta fsm'' ]
           }
 
+unions :: (Eq a, Hashable a) => [FSM a] -> FSM a
+unions = foldl1' union
+
 concatenate :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a -> FSM a
 concatenate fsm fsm' =
   let fsm'' = rename (+ states fsm) fsm'
@@ -58,6 +61,9 @@ concatenate fsm fsm' =
                               in  M.fromList [(t, ts) | t <- S.toList $ terminal fsm]
                             ]
           }
+
+concatenates :: (Eq a, Hashable a, Monoid a) => [FSM a] -> FSM a
+concatenates = foldl1' concatenate
 
 star :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
 star fsm =
