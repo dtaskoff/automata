@@ -1,5 +1,7 @@
 module FSM where
 
+import Relation
+
 import Data.Hashable (Hashable)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
@@ -28,7 +30,7 @@ data FSM a = FSM
 
 -- | A machine which traverses only a single word
 word :: (Eq a, Hashable a) => a -> FSM a
-word a = FSM 
+word a = FSM
   { states = 2
   , initial = S.singleton 0
   , terminal = S.singleton 1
@@ -71,17 +73,6 @@ star fsm =
                             ]
           }
 
-removeEpsilonTransitions :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
-removeEpsilonTransitions fsm =
-  let c' = transitiveClosure [ (p, q) | (p, aqs) <- M.toList $ delta fsm
-                             , q <- S.toList $ M.lookupDefault S.empty mempty aqs
-                             ]
-      c = \p -> S.fromList (map snd (filter ((== p) . fst) c'))
-      delta' = M.map (M.map (foldMap c) . M.filterWithKey (const . (/= mempty))) $ delta fsm
-  in  fsm { initial = foldMap c $ initial fsm
-          , delta = M.filter (not . M.null) $ delta'
-          }
-
 -- | Rename the states in a given FSM (increase them with n)
 rename :: (Eq a, Hashable a) => FSM a -> Int -> FSM a
 rename fsm n = fsm { states = states fsm + n
@@ -89,16 +80,14 @@ rename fsm n = fsm { states = states fsm + n
                    , terminal = S.map (+ n) $ terminal fsm
                    , delta = let delta' = M.map (M.map (S.map (+ n))) $ delta fsm
                              in  M.fromList . map (\(p, m) -> (p+n, m)) $ M.toList delta'
-                   }
-
--- | Transitive closure of a relation
--- (rather uneffective)
-transitiveClosure :: Eq a => [(a, a)] -> [(a, a)]
-transitiveClosure r =
-  let r' = [(x, y) |
-             (x, z) <- r,
-             y <- map snd $ filter ((== z) . fst) r
-           ]
-  in  if length r' == length r
-      then r
-      else transitiveClosure r'
+                  }
+ 
+removeEpsilonTransitions :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
+removeEpsilonTransitions fsm =
+  let cf = lift $ transitiveClosure [ (p, q) | (p, aqs) <- M.toList $ delta fsm
+                                    , q <- S.toList $ M.lookupDefault S.empty mempty aqs
+                             ]
+      delta' = M.map (M.map (foldMap cf) . M.filterWithKey (const . (/= mempty))) $ delta fsm
+  in  fsm { initial = foldMap cf $ initial fsm
+          , delta = M.filter (not . M.null) delta'
+          }
