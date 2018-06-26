@@ -1,5 +1,6 @@
 import FSM
 import FSA
+import FST
 
 import Test.Hspec
 import Test.QuickCheck
@@ -24,6 +25,33 @@ main = hspec $ do
   describe "FSA.star" $ do
     it "returns the Kleene closure of an FSA" $ do
       property' $ \w n -> star (word w) `accepts` concat (replicate n w)
+  -- | Description of FSTs
+  describe "FST.transduce" $ do
+    it "transduces an input with the given transducer" $ do
+      property' $ \w@(u, v) -> word w `transduce` u == [v]
+  describe "FST.union" $ do
+    it "returns the union of two FSTs" $ do
+      property' $ \w@(u, v) w'@(u', v') ->
+        let fst = word w `union` word w'
+            vs = fst `transduce` u
+            vs' = fst `transduce` u'
+        in  if u == u'
+            then vs == [v, v'] && vs' == [v, v']
+            else vs == [v] && vs' == [v']
+  describe "FST.concatenate" $ do
+    it "returns the concatenation of two FSTs" $ do
+      property' $ \w@(u, v) w'@(u', v') ->
+        let fst = word w `concatenate` word w'
+        in  fst `transduce` (u ++ u') == [v ++ v']
+  describe "FST.star" $ do
+    it "returns the Kleene closure of an FSTs" $ do
+      property' $ \w@(u, v) n ->
+        let fst = star $ word w
+            u' = concat $ replicate n u
+            v' = concat $ replicate n v
+            vs = fst `transduce` u'
+            v'' = if null u' then vs !! n else head vs
+        in  n < 0 || v' == v''
 
 property' :: Testable prop => prop -> Property
 property' = withMaxSuccess 1000 . property
