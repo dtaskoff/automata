@@ -9,6 +9,7 @@ import Data.Maybe (isJust, fromJust)
 
 
 type Input = String
+type Transition = (State, Input, State)
 type FSA = FSM Input
 
 -- | Returns True iff the automaton accepts the given word
@@ -21,3 +22,25 @@ accepts fsa w = not . null $ concatMap (go w) $ initial fsa
                           (u, qs) <- ts, q <- S.toList qs
                         , let mv = stripPrefix u w', isJust mv
                         ]
+
+-- | Transform to a one-letter automaton
+expand :: FSA -> FSA
+expand fsa = foldr expandTransition fsa
+  [ (q, w, r) | (q, wrs) <- M.toList $ delta fsa
+  , (w, rs) <- M.toList $ M.filterWithKey (\k _ -> length k > 1) wrs
+  , r <- S.toList rs
+  ]
+
+expandTransition :: Transition -> FSA -> FSA
+expandTransition (q, w, r) fsa =
+  let n = length w
+      delta' = M.adjust (M.delete w) q $ delta fsa
+  in  fsa { states = states fsa + n - 1
+          , delta = unions' [ delta'
+                            , M.fromList [ (t, at') | (t, (a, t')) <-
+                                              zip (q : [states fsa..]) $
+                                                zip w $ [states fsa..states fsa + n - 2] ++ [r]
+                                         , let at' = M.singleton [a] $ S.singleton t'
+                                         ]
+                            ]
+          }

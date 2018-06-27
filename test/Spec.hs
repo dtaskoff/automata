@@ -27,6 +27,11 @@ main = hspec $ do
   describe "FSA.star" $ do
     it "returns the Kleene closure of an FSA" $ do
       property' $ \w n -> star (word w) `accepts` concat (replicate n w)
+  describe "FSA.expand" $ do
+    it "turn FSA into a one-letter automaton" $ do
+      property' $ \w u ->
+        let fsa = word w
+        in  fsa `accepts` u == expand fsa `accepts` u
   -- | Description of FSTs
   describe "FST.transduce" $ do
     it "transduces an input with the given transducer" $ do
