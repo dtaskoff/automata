@@ -8,11 +8,8 @@ import qualified Data.HashSet as S
 type Relation a = [(a, a)] 
 type SetRelation a = M.HashMap a (S.HashSet a)
 
-reflexiveClosure :: (Eq a, Hashable a) => SetRelation a -> SetRelation a
-reflexiveClosure = M.mapWithKey S.insert
-
 transitiveClosure :: (Eq a, Hashable a) => Relation a -> SetRelation a
-transitiveClosure = go <*> reflexiveClosure . toSet
+transitiveClosure = go <*> toSet
   where go [] r = r 
         go ((a, b):abs) r = 
           case (M.lookup a r, M.lookup b r) of

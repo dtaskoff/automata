@@ -34,11 +34,21 @@ main = hspec $ do
         in  fsa `accepts` u == expand fsa `accepts` u
   describe "FSA.determinise" $ do
     it "turns an NFA into a DFA" $ do
-      property' $ \alphabet w ->
+      property $ \alphabet w ->
         let alphabet' = nub alphabet
             nfa = allOver alphabet'
             dfa = determinise nfa
         in  null alphabet' || nfa `accepts` w == dfa `accepts` w
+  describe "FSA.complement" $ do
+    it "returns the complement of an FSA" $ do
+      property' $ \alphabet w ->
+        let alphabet' = nub alphabet
+            fsa = FSA.total alphabet $ determinise $ word w
+            cfsa = complement fsa
+            ws = take 100 $ foldr (\x acc -> acc ++ map (x:) acc) [""] alphabet'
+            accept w = fsa `accepts` w /= cfsa `accepts` w
+        in  null alphabet' || null w || all accept ws
+
   -- | Description of FSTs
   describe "FST.transduce" $ do
     it "transduces an input with the given transducer" $ do

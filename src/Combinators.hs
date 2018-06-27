@@ -3,6 +3,7 @@ module Combinators where
 import FSM
 import FSA (FSA)
 import FST (FST)
+import Types
 
 import Data.Hashable (Hashable)
 import qualified Data.HashMap.Strict as M
@@ -13,8 +14,6 @@ transform :: (Eq a, Hashable a, Eq b, Hashable b) => (a -> b) -> FSM a -> FSM b
 transform f fsm = fsm
   { delta = M.map (M.fromList . map (\(a, q) -> (f a, q)) . M.toList) $ delta fsm
   }
-
-type Alphabet = [Char]
 
 domain :: FST -> FSA
 domain = transform fst

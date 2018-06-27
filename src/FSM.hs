@@ -89,9 +89,11 @@ rename f fsm = fsm { initial = S.map f $ initial fsm
  
 removeEpsilonTransitions :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
 removeEpsilonTransitions fsm =
-  let cf = lift $ transitiveClosure [ (p, q) | (p, aqs) <- M.toList $ delta fsm
-                                    , q <- S.toList $ M.lookupDefault S.empty mempty aqs
-                                    ]
+  let cf = lift $ transitiveClosure $
+        [(p, p) | p <- [0..states fsm - 1]] ++
+        [ (p, q) | (p, aqs) <- M.toList $ delta fsm
+        , q <- p : S.toList (M.lookupDefault S.empty mempty aqs)
+        ]
       delta' = M.map (M.map (foldMap cf) . M.filterWithKey (const . (/= mempty))) $ delta fsm
   in  fsm { initial = foldMap cf $ initial fsm
           , delta = M.filter (not . M.null) delta'

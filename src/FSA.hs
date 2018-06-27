@@ -1,6 +1,7 @@
 module FSA where
 
 import FSM
+import Types
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
@@ -73,3 +74,20 @@ determinise fsa =
                  , terminal = S.map (pslabels M.!) $ S.filter (not . null . (terminal fsa' `S.intersection`)) ps
                  , delta = d
                  }
+
+-- | Make an FSA total
+total :: Alphabet -> FSA -> FSA
+total alphabet fsa =
+  let trap = states fsa
+      delta' = M.fromList [ (p, aqs) | p <- [0..states fsa]
+                          , let aqs = M.fromList [([a], S.singleton trap) | a <- alphabet]
+                          ]
+  in  fsa { states = states fsa + 1
+          , delta = M.unionWith M.union (delta fsa) delta'
+          }
+
+-- | The complement of a total DFA
+complement :: FSA -> FSA
+complement fsa = fsa
+  { terminal = S.fromList [0..states fsa - 1] `S.difference` terminal fsa
+  }
