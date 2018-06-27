@@ -91,6 +91,21 @@ main = hspec $ do
             u' = if u == v then [u] else [u, v]
             u'' = fst `transduce` u
         in  null alphabet' || any (`notElem` alphabet) u || all (`elem` u'') u'
+  describe "Combinators.replace" $ do
+    let simpleReplace s u v =
+          let n = length u
+              simpleReplace' "" = ""
+              simpleReplace' s | u == take n s = v ++ simpleReplace' (drop n s)
+              simpleReplace' (c:cs) = c : simpleReplace' cs
+          in  simpleReplace' s
+    it "replacement transducer" $ do
+      property' $ \alphabet w@(u, v) ->
+        let alphabet' = nub alphabet
+            fst = replace alphabet' $ word w
+            sr w = simpleReplace w u v
+            t = (fst `transduce`)
+            ws = take 1000 $ foldr (\x acc -> acc ++ map (x:) acc) [""] alphabet'
+        in  null alphabet' || null u || any (`notElem` alphabet) u || all (\w -> sr w `elem` t w) ws
 
 property' :: Testable prop => prop -> Property
 property' = withMaxSuccess 1000 . property

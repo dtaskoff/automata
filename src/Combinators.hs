@@ -1,8 +1,8 @@
 module Combinators where
 
 import FSM
-import FSA (FSA)
-import FST (FST)
+import FSA
+import FST
 import Types
 
 import Data.Hashable (Hashable)
@@ -32,4 +32,13 @@ allOver = star . unions . map (word . (:[]))
 
 optionalReplace :: Alphabet -> FST -> FST
 optionalReplace = replace' . identity . allOver
-  where replace' ide fst = concatenate ide $ star $ concatenate fst ide
+
+replace :: Alphabet -> FST -> FST
+replace alphabet fst = replace' ide fst
+  where ide = union (word mempty) $ identity $ complement' $
+          concatenates [all', domain fst, all']
+        complement' = complement . total alphabet . determinise
+        all' = allOver alphabet
+
+replace' :: FST -> FST -> FST
+replace' ide fst = concatenate ide $ star $ concatenate fst ide
