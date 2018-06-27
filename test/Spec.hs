@@ -15,12 +15,12 @@ main = hspec $ do
     it "returns True if the given automaton accepts the given word" $ do
       property' $ \w -> word w `accepts` w
   describe "FSA.union" $ do
-    it "returns the union of two FSA" $ do
+    it "returns the union of two FSAs" $ do
       property' $ \w w' ->
         let fsa = word w `union` word w'
         in  fsa `accepts` w && fsa `accepts` w'
   describe "FSA.concatenate" $ do
-    it "returns the concatenation of two FSA" $ do
+    it "returns the concatenation of two FSAs" $ do
       property' $ \w w' ->
         let fsa = word w `concatenate` word w'
         in  fsa `accepts` (w ++ w')
@@ -28,10 +28,17 @@ main = hspec $ do
     it "returns the Kleene closure of an FSA" $ do
       property' $ \w n -> star (word w) `accepts` concat (replicate n w)
   describe "FSA.expand" $ do
-    it "turn FSA into a one-letter automaton" $ do
+    it "turns an FSA into a one-letter automaton" $ do
       property' $ \w u ->
         let fsa = word w
         in  fsa `accepts` u == expand fsa `accepts` u
+  describe "FSA.determinise" $ do
+    it "turns an NFA into a DFA" $ do
+      property' $ \alphabet w ->
+        let alphabet' = nub alphabet
+            nfa = allOver alphabet'
+            dfa = determinise nfa
+        in  null alphabet' || nfa `accepts` w == dfa `accepts` w
   -- | Description of FSTs
   describe "FST.transduce" $ do
     it "transduces an input with the given transducer" $ do

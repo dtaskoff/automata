@@ -44,3 +44,32 @@ expandTransition (q, w, r) fsa =
                                          ]
                             ]
           }
+
+-- | Determinisation of an FSA
+determinise :: FSA -> FSA
+determinise fsa =
+  let fsa' = expand $ removeEpsilonTransitions fsa
+      aqs = S.foldr (M.unionWith S.union) M.empty .
+              S.map (\q -> M.lookupDefault M.empty q $ delta fsa')
+
+      go [] ps pslabels d i n = (ps, pslabels, d, n)
+      go (q:qs) ps pslabels d i n =
+        let aqs' = aqs q
+            nqs = S.fromList (M.elems aqs') `S.difference` ps
+            ps' = nqs `S.union` ps
+            pslabels' = M.fromList (zip (S.toList nqs) [n..]) `M.union` pslabels
+            d'' = if M.null aqs'
+                  then M.empty
+                  else M.singleton i $ M.fromList [(a, S.singleton (pslabels' M.! qs')) | (a, qs') <- M.toList aqs']
+            d' = unions' [d, d'']
+        in  go (qs ++ S.toList nqs) ps' pslabels' d' (i+1) (n + S.size nqs)
+
+      (ps, pslabels, d, n) = go [initial fsa']
+                                (S.singleton (initial fsa'))
+                                (M.singleton (initial fsa') 0)
+                                M.empty 0 1
+  in  trim $ FSM { states = n
+                 , initial = S.singleton 0
+                 , terminal = S.map (pslabels M.!) $ S.filter (not . null . (terminal fsa' `S.intersection`)) ps
+                 , delta = d
+                 }
