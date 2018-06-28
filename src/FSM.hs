@@ -68,10 +68,14 @@ concatenates = foldl1' concatenate
 
 star :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
 star fsm =
+  let fsm' = plus fsm
+  in  fsm' { initial = S.singleton $ states fsm' - 1 }
+
+plus :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
+plus fsm =
   let q = states fsm
       sq = S.singleton q
   in  fsm { states = states fsm + 1
-          , initial = sq
           , terminal = sq
           , delta = unions' [ delta fsm
                             , M.singleton q $ M.singleton mempty $ initial fsm
