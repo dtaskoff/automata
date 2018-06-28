@@ -3,14 +3,13 @@ module FSM where
 import Relation
 import Types
 
+import Data.Function (on)
 import Data.Hashable (Hashable)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 import Data.List (foldl1')
 
 
-type Map k v = M.HashMap k v
-type Set a = S.HashSet a
 type State = Int
 type Transition a = (State, a, State)
 type TransitionTable a = Map State (Map a (Set State))
@@ -142,18 +141,27 @@ expandTransition (q, w, r) fsm =
                             ]
           }
 
-product :: (Eq a, Hashable a) =>
-  [(State, State)] -> TransitionTable a -> TransitionTable a -> (Map (State, State) State, TransitionTable a)
-product [] _ _ = (M.empty, M.empty)
-product initial delta delta' =
-  let aqs = M.lookupDefault M.empty
-      n = length initial
+compose :: (Combinable a, Expandable a, Monoid a, Eq a, Hashable a) => FSM a -> FSM a -> FSM a
+compose fsm fsm' =
+  let fsme = expand fsm
+      fsme' = expand fsm'
+      fsmex = fsme { delta = unions' [ delta fsme
+                                     , M.fromList [(p, M.singleton mempty $ S.singleton p) | p <- [0..states fsme-1]]
+                                     ]
+                   }
+      fsmex' = fsme' { delta = unions' [ delta fsme'
+                                       , M.fromList [(p, M.singleton mempty $ S.singleton p) | p <- [0..states fsme'-1]]
+                                       ]
+                   }
+      aqs = M.lookupDefault M.empty
+      initial' = on cartesian (S.toList . initial) fsmex fsmex'
+      terminal' = on cartesian (S.toList . terminal) fsmex fsmex'
 
-      go [] _ pslabels d _ _ = (pslabels, d)
+      go [] _ pslabels d _ n = (pslabels, d, n)
       go ((q, q'):qs) ps pslabels d i n =
-        let ars = aqs q delta
-            ars' = aqs q' delta'
-            ars'' = M.intersectionWith (\rs rs' -> S.fromList $ cartesian (S.toList rs) (S.toList rs')) ars ars'
+        let ars = aqs q $ delta fsmex
+            ars' = aqs q' $ delta fsmex'
+            ars'' = combine ars ars'
             nrs = S.unions (M.elems ars'') `S.difference` ps
             nrss = S.toList nrs
             pslabels' = M.fromList (zip nrss [n..]) `M.union` pslabels
@@ -163,19 +171,13 @@ product initial delta delta' =
             d' = unions' [d, d'']
         in go (qs ++ nrss) (nrs `S.union` ps) pslabels' d' (i+1) (n + S.size nrs)
 
-  in  go initial
-         (S.fromList initial)
-         (M.fromList $ zip initial [0..])
-         M.empty 0 n
-
-intersect :: (Eq a, Hashable a) => FSM a -> FSM a -> FSM a
-intersect fsm fsm' =
-  let (labels, delta'') = FSM.product initial' (delta fsm) (delta fsm')
-      cartesian' s s' = cartesian (S.toList s) (S.toList s')
-      initial' = cartesian' (initial fsm) (initial fsm')
-      terminal' = cartesian' (terminal fsm) (terminal fsm')
-  in  FSM { states = M.size labels
-          , initial = S.fromList $ map (labels M.!) initial'
-          , terminal = S.fromList $ M.elems $ labels `M.intersection` S.toMap (S.fromList terminal')
-          , delta = delta''
-          }
+      (pslabels, d, n) = go initial'
+                            (S.fromList initial')
+                            (M.fromList $ zip initial' [0..])
+                            M.empty 0 (length initial')
+  in  trim $ removeEpsilonTransitions $
+        FSM { states = n
+            , initial = S.fromList $ map (pslabels M.!) initial'
+            , terminal = S.fromList $ M.elems $ pslabels `M.intersection` S.toMap (S.fromList terminal')
+            , delta = d
+            }

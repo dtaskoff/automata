@@ -30,3 +30,6 @@ lift r = maybe S.empty id . (`M.lookup` r)
 
 cartesian :: [a] -> [b] -> [(a, b)]
 cartesian xs ys = map (,) xs <*> ys
+
+setCartesian :: (Eq a, Hashable a, Eq b, Hashable b) => S.HashSet a -> S.HashSet b -> S.HashSet (a, b)
+setCartesian xs ys = S.fromList $ cartesian (S.toList xs) (S.toList ys)

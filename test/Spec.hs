@@ -55,12 +55,12 @@ main = hspec $ do
             ws = take 100 $ wordsOver alphabet
             accept w = fsa `accepts` w /= cfsa `accepts` w
         in  S.null alphabet || BS.null w || all accept ws
-  describe "FSA.intersect" $ do
-    it "returns the intersection of two FSAs" $ do
+  describe "FSA.compose" $ do
+    it "returns the composition (intersection) of two FSAs" $ do
       property $ \alphabet alphabet' ->
         let fsa = allOver alphabet
             fsa' = allOver alphabet'
-            fsa'' = intersect fsa fsa'
+            fsa'' = compose fsa fsa'
             ws = take 100 $ wordsOver alphabet
             ws' = take 100 $ wordsOver alphabet'
         in  S.null alphabet || S.null alphabet' ||
@@ -98,6 +98,21 @@ main = hspec $ do
       property' $ \w u ->
         let fst = word w
         in  fst `transduce` u == expand fst `transduce` u
+  describe "FST.compose" $ do
+    it "returns the composition of two FSTs" $ do
+      property $ \u v w ->
+        let fst = star $ word (u, v)
+            fst' = star $ word (v, w)
+            fst'' = compose fst fst'
+            alphabet = S.fromList $ BS.unpack u
+            ws = take 100 $ wordsOver $ alphabet
+            f = transduce fst
+            f' = transduce fst'
+            f'' = transduce fst''
+        in  S.null alphabet || BS.null u || BS.null v || BS.null w ||
+              all (\w -> let l = f'' w
+                             r = concatMap f' $ f w
+                         in  null l && null r || head l == head r) ws
 
   -- | Description of Combinators
   describe "Combinators.allOver" $ do
