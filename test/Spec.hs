@@ -3,10 +3,12 @@ import FSM
 import FSA
 import FST
 import Combinators
+import Relation
 import Types
 
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.HashSet as S
+import qualified Data.HashMap.Strict as M
 import Data.List (nub)
 import Data.Word (Word8)
 import Test.Hspec
@@ -15,6 +17,8 @@ import Test.QuickCheck
 
 main :: IO ()
 main = hspec $ do
+  let wordsOver = foldr (\x acc -> acc ++ map (BS.cons x) acc) [BS.empty] . S.toList
+
   -- | Description of FSAs
   describe "FSA.accepts" $ do
     it "returns True if the given automaton accepts the given word" $ do
@@ -48,9 +52,19 @@ main = hspec $ do
       property' $ \alphabet w ->
         let fsa = FSA.total alphabet $ determinise $ word w
             cfsa = complement fsa
-            ws = take 100 $ foldr (\x acc -> acc ++ map (BS.cons x) acc) [BS.empty] $ S.toList alphabet
+            ws = take 100 $ wordsOver alphabet
             accept w = fsa `accepts` w /= cfsa `accepts` w
         in  S.null alphabet || BS.null w || all accept ws
+  describe "FSA.intersect" $ do
+    it "returns the intersection of two FSAs" $ do
+      property $ \alphabet alphabet' ->
+        let fsa = allOver alphabet
+            fsa' = allOver alphabet'
+            fsa'' = intersect fsa fsa'
+            ws = take 100 $ wordsOver alphabet
+            ws' = take 100 $ wordsOver alphabet'
+        in  S.null alphabet || S.null alphabet' ||
+              all (\w -> (fsa `accepts` w && fsa' `accepts` w) == fsa'' `accepts` w) (ws ++ ws')
 
   -- | Description of FSTs
   describe "FST.transduce" $ do
@@ -84,6 +98,7 @@ main = hspec $ do
       property' $ \w u ->
         let fst = word w
         in  fst `transduce` u == expand fst `transduce` u
+
   -- | Description of Combinators
   describe "Combinators.allOver" $ do
     it "returns an automaton accepting all words over an alphabet" $ do

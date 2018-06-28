@@ -27,3 +27,6 @@ fromSet = concatMap (\(x, s) -> [(x, y) | y <- S.toList s]) . M.toList
 
 lift :: (Eq a, Hashable a) => SetRelation a -> a -> S.HashSet a
 lift r = maybe S.empty id . (`M.lookup` r)
+
+cartesian :: [a] -> [b] -> [(a, b)]
+cartesian xs ys = map (,) xs <*> ys
