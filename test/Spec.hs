@@ -1,11 +1,16 @@
+{-# Language FlexibleInstances #-}
 import FSM
 import FSA
 import FST
 import Combinators
+import Types
 
+import qualified Data.ByteString.Lazy as BS
+import qualified Data.HashSet as S
+import Data.List (nub)
+import Data.Word (Word8)
 import Test.Hspec
 import Test.QuickCheck
-import Data.List (nub)
 
 
 main :: IO ()
@@ -23,10 +28,10 @@ main = hspec $ do
     it "returns the concatenation of two FSAs" $ do
       property' $ \w w' ->
         let fsa = word w `concatenate` word w'
-        in  fsa `accepts` (w ++ w')
+        in  fsa `accepts` BS.append w w'
   describe "FSA.star" $ do
     it "returns the Kleene closure of an FSA" $ do
-      property' $ \w n -> star (word w) `accepts` concat (replicate n w)
+      property' $ \w n -> star (word w) `accepts` BS.concat (replicate n w)
   describe "FSA.expand" $ do
     it "turns an FSA into a one-letter automaton" $ do
       property' $ \w u ->
@@ -35,19 +40,17 @@ main = hspec $ do
   describe "FSA.determinise" $ do
     it "turns an NFA into a DFA" $ do
       property $ \alphabet w ->
-        let alphabet' = nub alphabet
-            nfa = allOver alphabet'
+        let nfa = allOver alphabet
             dfa = determinise nfa
-        in  null alphabet' || nfa `accepts` w == dfa `accepts` w
+        in  S.null alphabet || nfa `accepts` w == dfa `accepts` w
   describe "FSA.complement" $ do
     it "returns the complement of an FSA" $ do
       property' $ \alphabet w ->
-        let alphabet' = nub alphabet
-            fsa = FSA.total alphabet $ determinise $ word w
+        let fsa = FSA.total alphabet $ determinise $ word w
             cfsa = complement fsa
-            ws = take 100 $ foldr (\x acc -> acc ++ map (x:) acc) [""] alphabet'
+            ws = take 100 $ foldr (\x acc -> acc ++ map (BS.cons x) acc) [BS.empty] $ S.toList alphabet
             accept w = fsa `accepts` w /= cfsa `accepts` w
-        in  null alphabet' || null w || all accept ws
+        in  S.null alphabet || BS.null w || all accept ws
 
   -- | Description of FSTs
   describe "FST.transduce" $ do
@@ -66,46 +69,50 @@ main = hspec $ do
     it "returns the concatenation of two FSTs" $ do
       property' $ \w@(u, v) w'@(u', v') ->
         let fst = word w `concatenate` word w'
-        in  fst `transduce` (u ++ u') == [v ++ v']
+        in  fst `transduce` BS.append u u' == [BS.append v v']
   describe "FST.star" $ do
     it "returns the Kleene closure of an FSTs" $ do
       property' $ \w@(u, v) n ->
         let fst = star $ word w
-            u' = concat $ replicate n u
-            v' = concat $ replicate n v
+            u' = BS.concat $ replicate n u
+            v' = BS.concat $ replicate n v
             vs = fst `transduce` u'
-            v'' = if null u' then vs !! n else head vs
+            v'' = if BS.null u' then vs !! n else head vs
         in  n < 0 || v' == v''
   -- | Description of Combinators
   describe "Combinators.allOver" $ do
     it "returns an automaton accepting all words over an alphabet" $ do
-      property' $ \alphabet w ->
-        let alphabet' = nub alphabet
-            fsa = allOver alphabet
-        in  null alphabet' || or (map (`notElem` alphabet') w) || fsa `accepts` w
+      property' $ \alphabet ->
+        let fsa = allOver alphabet
+            ws = take 100 $ foldr (\x acc -> acc ++ map (BS.cons x) acc) [BS.empty] $ S.toList alphabet
+        in  S.null alphabet ||  all (fsa `accepts`) ws
   describe "Combinators.optionalReplace" $ do
     it "optional replacement transducer" $ do
       property' $ \alphabet w@(u, v) ->
-        let alphabet' = nub alphabet
-            fst = optionalReplace alphabet' $ word w
+        let fst = optionalReplace alphabet $ word w
             u' = if u == v then [u] else [u, v]
             u'' = fst `transduce` u
-        in  null alphabet' || any (`notElem` alphabet) u || all (`elem` u'') u'
+        in  S.null alphabet || BS.any (not . (`S.member` alphabet)) u || all (`elem` u'') u'
   describe "Combinators.replace" $ do
     let simpleReplace s u v =
-          let n = length u
-              simpleReplace' "" = ""
-              simpleReplace' s | u == take n s = v ++ simpleReplace' (drop n s)
-              simpleReplace' (c:cs) = c : simpleReplace' cs
+          let n = BS.length u
+              simpleReplace' s | BS.null s = BS.empty
+              simpleReplace' s | u == BS.take n s = BS.append v $ simpleReplace' (BS.drop n s)
+              simpleReplace' s = BS.cons (BS.head s) $ simpleReplace' $ BS.tail s
           in  simpleReplace' s
     it "replacement transducer" $ do
       property' $ \alphabet w@(u, v) ->
-        let alphabet' = nub alphabet
-            fst = replace alphabet' $ word w
+        let fst = replace alphabet $ word w
             sr w = simpleReplace w u v
-            t = (fst `transduce`)
-            ws = take 1000 $ foldr (\x acc -> acc ++ map (x:) acc) [""] alphabet'
-        in  null alphabet' || null u || any (`notElem` alphabet) u || all (\w -> sr w `elem` t w) ws
+            t = transduce fst
+            ws = take 1000 $ foldr (\x acc -> acc ++ map (BS.cons x) acc) [BS.empty] $ S.toList alphabet
+        in  S.null alphabet || BS.null u || BS.any (not . (`S.member` alphabet)) u || all (\w -> sr w `elem` t w) ws
 
 property' :: Testable prop => prop -> Property
 property' = withMaxSuccess 1000 . property
+
+instance Arbitrary BS.ByteString where
+  arbitrary = fmap BS.pack arbitrary
+
+instance Arbitrary Alphabet where
+  arbitrary = fmap S.fromList arbitrary

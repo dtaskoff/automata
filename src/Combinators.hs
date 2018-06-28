@@ -6,6 +6,7 @@ import FST
 import Types
 
 import Data.Hashable (Hashable)
+import qualified Data.ByteString.Lazy as BS
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 
@@ -28,7 +29,7 @@ identity :: FSA -> FST
 identity = transform (\u -> (u, u))
 
 allOver :: Alphabet -> FSA
-allOver = star . unions . map (word . (:[]))
+allOver = star . unions . map (word . BS.singleton) . S.toList
 
 optionalReplace :: Alphabet -> FST -> FST
 optionalReplace = replace' . identity . allOver

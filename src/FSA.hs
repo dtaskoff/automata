@@ -3,13 +3,14 @@ module FSA where
 import FSM
 import Types
 
+import qualified Data.ByteString.Lazy as BS
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 import Data.List (stripPrefix)
 import Data.Maybe (isJust, fromJust)
 
 
-type Input = String
+type Input = BS.ByteString
 type Transition = (State, Input, State)
 type FSA = FSM Input
 
@@ -21,27 +22,27 @@ accepts fsa w = not . null $ concatMap (go w) $ initial fsa
                   in  concatMap (uncurry go)
                         [ (fromJust mv, q) |
                           (u, qs) <- ts, q <- S.toList qs
-                        , let mv = stripPrefix u w', isJust mv
+                        , let mv = BS.stripPrefix u w', isJust mv
                         ]
 
 -- | Transform to a one-letter automaton
 expand :: FSA -> FSA
 expand fsa = foldr expandTransition fsa
   [ (q, w, r) | (q, wrs) <- M.toList $ delta fsa
-  , (w, rs) <- M.toList $ M.filterWithKey (\k _ -> length k > 1) wrs
+  , (w, rs) <- M.toList $ M.filterWithKey (\a _ -> BS.length a > 1) wrs
   , r <- S.toList rs
   ]
 
 expandTransition :: Transition -> FSA -> FSA
 expandTransition (q, w, r) fsa =
-  let n = length w
+  let n = fromIntegral $ BS.length w
       delta' = M.adjust (M.delete w) q $ delta fsa
   in  fsa { states = states fsa + n - 1
           , delta = unions' [ delta'
-                            , M.fromList [ (t, at') | (t, (a, t')) <-
-                                              zip (q : [states fsa..]) $
-                                                zip w $ [states fsa..states fsa + n - 2] ++ [r]
-                                         , let at' = M.singleton [a] $ S.singleton t'
+                            , M.fromList [ (t, at') |
+                                           (t, (a, t')) <- zip (q : [states fsa..]) $
+                                             zip (BS.unpack w) $ [states fsa..states fsa + n - 2] ++ [r]
+                                         , let at' = M.singleton (BS.singleton a) $ S.singleton t'
                                          ]
                             ]
           }
@@ -79,8 +80,9 @@ determinise fsa =
 total :: Alphabet -> FSA -> FSA
 total alphabet fsa =
   let trap = states fsa
+      alphabet' = S.toList alphabet
       delta' = M.fromList [ (p, aqs) | p <- [0..states fsa]
-                          , let aqs = M.fromList [([a], S.singleton trap) | a <- alphabet]
+                          , let aqs = M.fromList [(BS.singleton a, S.singleton trap) | a <- alphabet']
                           ]
   in  fsa { states = states fsa + 1
           , delta = M.unionWith M.union (delta fsa) delta'
