@@ -100,8 +100,11 @@ main = hspec $ do
         in  fst `transduce` u == expand fst `transduce` u
   describe "FST.compose" $ do
     it "returns the composition of two FSTs" $ do
-      property $ \u v w ->
-        let fst = star $ word (u, v)
+      property $ \u' v' w' ->
+        let u = BS.take 10 u'
+            v = BS.take 10 v'
+            w = BS.take 10 w'
+            fst = star $ word (u, v)
             fst' = star $ word (v, w)
             fst'' = compose fst fst'
             alphabet = S.fromList $ BS.unpack u
