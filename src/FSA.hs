@@ -32,15 +32,15 @@ determinise fsa =
 
       go [] ps pslabels d i n = (ps, pslabels, d, n)
       go (q:qs) ps pslabels d i n =
-        let aqs' = aqs q
-            nqs = S.fromList (M.elems aqs') `S.difference` ps
-            ps' = nqs `S.union` ps
-            pslabels' = M.fromList (zip (S.toList nqs) [n..]) `M.union` pslabels
-            d'' = if M.null aqs'
+        let ars = aqs q
+            nrs = S.fromList (M.elems ars) `S.difference` ps
+            nrss = S.toList nrs
+            pslabels' = M.fromList (zip nrss [n..]) `M.union` pslabels
+            d'' = if M.null ars
                   then M.empty
-                  else M.singleton i $ M.fromList [(a, S.singleton (pslabels' M.! qs')) | (a, qs') <- M.toList aqs']
+                  else M.singleton i $ M.fromList [(a, S.singleton (pslabels' M.! qs')) | (a, qs') <- M.toList ars]
             d' = unions' [d, d'']
-        in  go (qs ++ S.toList nqs) ps' pslabels' d' (i+1) (n + S.size nqs)
+        in  go (qs ++ nrss) (nrs `S.union` ps) pslabels' d' (i+1) (n + S.size nrs)
 
       (ps, pslabels, d, n) = go [initial fsa']
                                 (S.singleton (initial fsa'))

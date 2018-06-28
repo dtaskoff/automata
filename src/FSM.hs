@@ -155,13 +155,13 @@ product initial delta delta' =
             ars' = aqs q' delta'
             ars'' = M.intersectionWith (\rs rs' -> S.fromList $ cartesian (S.toList rs) (S.toList rs')) ars ars'
             nrs = S.unions (M.elems ars'') `S.difference` ps
-            pslabels' = M.fromList (zip (S.toList nrs) [n..]) `M.union` pslabels
-            d' = unions' [ d
-                         , if M.null ars''
-                           then M.empty
-                           else M.singleton i $ M.map (S.map (pslabels' M.!)) ars''
-                         ]
-        in go (qs ++ S.toList nrs) (nrs `S.union` ps) pslabels' d' (i+1) (n + S.size nrs)
+            nrss = S.toList nrs
+            pslabels' = M.fromList (zip nrss [n..]) `M.union` pslabels
+            d'' = if M.null ars''
+                  then M.empty
+                  else M.singleton i $ M.map (S.map (pslabels' M.!)) ars''
+            d' = unions' [d, d'']
+        in go (qs ++ nrss) (nrs `S.union` ps) pslabels' d' (i+1) (n + S.size nrs)
 
   in  go initial
          (S.fromList initial)
