@@ -1,6 +1,7 @@
 module FST where
 
 import FSM
+import Types
 
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.HashMap.Strict as M
@@ -9,8 +10,6 @@ import Data.List (stripPrefix)
 import Data.Maybe (isJust, fromJust)
 
 
-type Input = BS.ByteString
-type Output = BS.ByteString
 type FST = FSM (Input, Output)
 
 transduce :: FST -> Input -> [Output]

@@ -28,7 +28,7 @@ dependencies:
 
 library:
   source-dirs: src
-  default-extensions: OverloadedStrings
+  default-extensions: FlexibleInstances, OverloadedStrings, TypeSynonymInstances
 
 executables:
   automata-exe:

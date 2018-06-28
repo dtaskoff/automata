@@ -79,6 +79,11 @@ main = hspec $ do
             vs = fst `transduce` u'
             v'' = if BS.null u' then vs !! n else head vs
         in  n < 0 || v' == v''
+  describe "FST.expand" $ do
+    it "turns an FST into a one-letter transducer" $ do
+      property' $ \w u ->
+        let fst = word w
+        in  fst `transduce` u == expand fst `transduce` u
   -- | Description of Combinators
   describe "Combinators.allOver" $ do
     it "returns an automaton accepting all words over an alphabet" $ do
