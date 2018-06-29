@@ -1,4 +1,5 @@
 {-# Language ConstraintKinds #-}
+{-# Language MultiParamTypeClasses #-}
 module Types where
 
 import Relation
@@ -43,17 +44,32 @@ instance Expandable (Input, Output) where
   expandLabel (a, b) = take (size (a, b)) $
     zip (expandLabel a ++ repeat "") $ expandLabel b ++ repeat ""
 
-class Hash a => Combinable a where
-  prepare :: TransitionTable a -> Int -> TransitionTable a
-  combine :: Hash b => Map a (Set b) -> Map a (Set b) -> Map a (Set (b, b))
+class (Hash a, Hash b) => Combinable a b where
+  combine :: Hash c => Map a (Set c) -> Map a (Set c) -> Map b (Set (c, c))
 
-instance Combinable Input where
-  prepare = const . id
+-- | Intersection of FSAs
+-- TODO: should disable looping epsilons before applying the construction
+instance Combinable Input Input where
   combine = M.intersectionWith setCartesian
 
-instance Combinable (Input, Output) where
-  prepare delta n = unions' [ delta, M.fromList [(p, M.singleton mempty $ S.singleton p) | p <- [0..n-1]] ]
-  combine aqs aqs' = M.foldlWithKey' go M.empty aqs
-    where go m (a, b) qs = foldr (f a qs) m $ filter ((== b) . fst) keys
-          f a qs k@(_, c) acc = M.insertWith S.union (a, c) (setCartesian qs (aqs' M.! k)) acc
-          keys = M.keys aqs'
+-- | Composition of FSTs
+instance Combinable (Input, Output) (Input, Output) where
+  combine = combineMaps (\(_, b) -> filter ((== b) . fst)) (\(a, _) (_, c) -> (a, c))
+
+-- | Product of FSAs
+instance Combinable Input (Input, Output) where
+  combine = combineMaps (const id) (,)
+
+-- | Combine two maps given a way to match keys from them and merge their corresponding values
+combineMaps :: (Hash a, Hash b, Hash c) =>
+  (a -> [a] -> [a]) -> (a -> a -> b) -> Map a (Set c) -> Map a (Set c) -> Map b (Set (c, c))
+combineMaps match merge aqs bqs = M.foldlWithKey' go M.empty aqs
+  where go m a qs = foldr (f a qs) m $ match a keys
+        f a qs b = M.insertWith S.union (merge a b) $ setCartesian qs (bqs M.! b)
+        keys = M.keys bqs
+
+loopEpsilons :: (Monoid a, Hash a) => TransitionTable a -> Int -> TransitionTable a
+loopEpsilons delta states = unions' [ delta, M.fromList [(p, etransitions $ S.singleton p) | p <- [0..states-1]] ]
+
+etransitions :: (Monoid a, Hash a) => Set State -> Map a (Set State)
+etransitions = M.singleton mempty

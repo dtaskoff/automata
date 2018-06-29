@@ -9,7 +9,7 @@ import Types
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.HashSet as S
 import qualified Data.HashMap.Strict as M
-import Data.List (nub)
+import Data.List (nub, sort)
 import Data.Word (Word8)
 import Test.Hspec
 import Test.QuickCheck
@@ -17,7 +17,7 @@ import Test.QuickCheck
 
 main :: IO ()
 main = hspec $ do
-  let wordsOver = foldr (\x acc -> acc ++ map (BS.cons x) acc) [BS.empty] . S.toList
+  let wordsOver = take 100 . foldr (\x acc -> acc ++ map (BS.cons x) acc) [BS.empty] . S.toList
 
   -- | Description of FSAs
   describe "FSA.accepts" $ do
@@ -52,7 +52,7 @@ main = hspec $ do
       property' $ \alphabet w ->
         let fsa = FSA.total alphabet $ determinise $ word w
             cfsa = complement fsa
-            ws = take 100 $ wordsOver alphabet
+            ws = wordsOver alphabet
             accept w = fsa `accepts` w /= cfsa `accepts` w
         in  S.null alphabet || BS.null w || all accept ws
   describe "FSA.compose" $ do
@@ -61,8 +61,8 @@ main = hspec $ do
         let fsa = allOver alphabet
             fsa' = allOver alphabet'
             fsa'' = compose fsa fsa'
-            ws = take 100 $ wordsOver alphabet
-            ws' = take 100 $ wordsOver alphabet'
+            ws = wordsOver alphabet
+            ws' = wordsOver alphabet'
         in  S.null alphabet || S.null alphabet' ||
               all (\w -> (fsa `accepts` w && fsa' `accepts` w) == fsa'' `accepts` w) (ws ++ ws')
 
@@ -108,7 +108,7 @@ main = hspec $ do
             fst' = star $ word (v, w)
             fst'' = compose fst fst'
             alphabet = S.fromList $ BS.unpack u
-            ws = take 100 $ wordsOver $ alphabet
+            ws = wordsOver alphabet
             f = transduce fst
             f' = transduce fst'
             f'' = transduce fst''
@@ -122,7 +122,7 @@ main = hspec $ do
     it "returns an automaton accepting all words over an alphabet" $ do
       property' $ \alphabet ->
         let fsa = allOver alphabet
-            ws = take 100 $ foldr (\x acc -> acc ++ map (BS.cons x) acc) [BS.empty] $ S.toList alphabet
+            ws = wordsOver alphabet
         in  S.null alphabet ||  all (fsa `accepts`) ws
   describe "Combinators.optionalReplace" $ do
     it "optional replacement transducer" $ do
@@ -143,8 +143,18 @@ main = hspec $ do
         let fst = replace alphabet $ word w
             sr w = simpleReplace w u v
             t = transduce fst
-            ws = take 1000 $ foldr (\x acc -> acc ++ map (BS.cons x) acc) [BS.empty] $ S.toList alphabet
+            ws = wordsOver alphabet
         in  S.null alphabet || BS.null u || BS.any (not . (`S.member` alphabet)) u || all (\w -> sr w `elem` t w) ws
+
+  describe "FSM.compose :: FSA -> FSA -> FST" $ do
+    it "creates an FST from two FSAs" $ do
+      property' $ \alphabet (u', v') ->
+        let w@(u, v) = (BS.take 10 u', BS.take 10 v')
+            fst = word w
+            fst' = compose (word u) (word v)
+            out fst = nub . sort . transduce fst
+            ws = wordsOver alphabet
+        in  S.null alphabet || all (\w -> out fst w == out fst' w) ws
 
 property' :: Testable prop => prop -> Property
 property' = withMaxSuccess 1000 . property

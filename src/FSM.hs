@@ -136,12 +136,9 @@ expandTransition (q, w, r) fsm =
                             ]
           }
 
-etransitions :: (Monoid a, Hash a) => Set State -> Map a (Set State)
-etransitions = M.singleton mempty
-
-compose :: (Combinable a, Expandable a, Monoid a, Hash a) => FSM a -> FSM a -> FSM a
+compose :: (Combinable a b, Expandable a, Monoid a, Monoid b) => FSM a -> FSM a -> FSM b
 compose fsm fsm' =
-  let expand' fsme = fsme' { delta = prepare (delta fsme') $ states fsme' }
+  let expand' fsme = fsme' { delta = loopEpsilons (delta fsme') $ states fsme' }
         where fsme' = expand fsme
 
       fsme = expand' fsm
