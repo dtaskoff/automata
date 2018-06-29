@@ -2,8 +2,6 @@
 {-# Language MultiParamTypeClasses #-}
 module Types where
 
-import Relation
-
 import Data.Hashable (Hashable)
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.HashMap.Strict as M

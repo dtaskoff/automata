@@ -31,6 +31,9 @@ library:
   default-extensions: FlexibleInstances, OverloadedStrings, TypeSynonymInstances
   ghc-options:
   - -O2
+  - -Wall
+  - -Werror
+  - -fno-warn-name-shadowing
 
 executables:
   automata-exe:
