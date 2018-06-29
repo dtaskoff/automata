@@ -55,16 +55,6 @@ main = hspec $ do
             ws = wordsOver alphabet
             accept w = fsa `accepts` w /= cfsa `accepts` w
         in  S.null alphabet || BS.null w || all accept ws
-  describe "FSA.compose" $ do
-    it "returns the composition (intersection) of two FSAs" $ do
-      property $ \alphabet alphabet' ->
-        let fsa = allOver alphabet
-            fsa' = allOver alphabet'
-            fsa'' = compose fsa fsa'
-            ws = wordsOver alphabet
-            ws' = wordsOver alphabet'
-        in  S.null alphabet || S.null alphabet' ||
-              all (\w -> (fsa `accepts` w && fsa' `accepts` w) == fsa'' `accepts` w) (ws ++ ws')
 
   -- | Description of FSTs
   describe "FST.transduce" $ do
@@ -98,7 +88,19 @@ main = hspec $ do
       property' $ \w u ->
         let fst = word w
         in  fst `transduce` u == expand fst `transduce` u
-  describe "FST.compose" $ do
+
+  -- | Description of Combinators
+  describe "Combinators.intersect" $ do
+    it "returns the intersection of two FSAs" $ do
+      property $ \alphabet alphabet' ->
+        let fsa = allOver alphabet
+            fsa' = allOver alphabet'
+            fsa'' = intersect fsa fsa'
+            ws = wordsOver alphabet
+            ws' = wordsOver alphabet'
+        in  S.null alphabet || S.null alphabet' ||
+              all (\w -> (fsa `accepts` w && fsa' `accepts` w) == fsa'' `accepts` w) (ws ++ ws')
+  describe "Combinators.compose" $ do
     it "returns the composition of two FSTs" $ do
       property $ \u' v' w' ->
         let u = BS.take 10 u'
@@ -117,7 +119,16 @@ main = hspec $ do
                              r = concatMap f' $ f w
                          in  null l && null r || head l == head r) ws
 
-  -- | Description of Combinators
+  describe "Combinators.product" $ do
+    it "creates an FST from two FSAs" $ do
+      property' $ \alphabet (u', v') ->
+        let w@(u, v) = (BS.take 10 u', BS.take 10 v')
+            fst = word w
+            fst' = Combinators.product (word u) (word v)
+            out fst = nub . sort . transduce fst
+            ws = wordsOver alphabet
+        in  S.null alphabet || all (\w -> out fst w == out fst' w) ws
+
   describe "Combinators.allOver" $ do
     it "returns an automaton accepting all words over an alphabet" $ do
       property' $ \alphabet ->
@@ -145,16 +156,6 @@ main = hspec $ do
             t = transduce fst
             ws = wordsOver alphabet
         in  S.null alphabet || BS.null u || BS.any (not . (`S.member` alphabet)) u || all (\w -> sr w `elem` t w) ws
-
-  describe "FSM.compose :: FSA -> FSA -> FST" $ do
-    it "creates an FST from two FSAs" $ do
-      property' $ \alphabet (u', v') ->
-        let w@(u, v) = (BS.take 10 u', BS.take 10 v')
-            fst = word w
-            fst' = compose (word u) (word v)
-            out fst = nub . sort . transduce fst
-            ws = wordsOver alphabet
-        in  S.null alphabet || all (\w -> out fst w == out fst' w) ws
 
 property' :: Testable prop => prop -> Property
 property' = withMaxSuccess 1000 . property

@@ -136,9 +136,11 @@ expandTransition (q, w, r) fsm =
                             ]
           }
 
-compose :: (Combinable a b, Expandable a, Monoid a, Monoid b) => FSM a -> FSM a -> FSM b
-compose fsm fsm' =
-  let expand' fsme = fsme' { delta = loopEpsilons (delta fsme') $ states fsme' }
+combine :: (Combinable a b, Expandable a, Monoid a, Monoid b) => Bool -> FSM a -> FSM a -> FSM b
+combine loop fsm fsm' =
+  let expand' fsme = if loop
+                     then fsme' { delta = loopEpsilons (delta fsme') $ states fsme' }
+                     else fsme'
         where fsme' = expand fsme
 
       fsme = expand' fsm
@@ -149,7 +151,7 @@ compose fsm fsm' =
       terminal' = on cartesian (S.toList . terminal) fsme fsme'
 
       (_, pslabels, d, n) =
-        recurse initial' (\(q, q') -> combine (aqs q) (aqs' q')) S.unions $
+        recurse initial' (\(q, q') -> combineTransitions (aqs q) (aqs' q')) S.unions $
           \pslabels' -> M.map (S.map (pslabels' M.!))
 
   in  trim $ removeEpsilonTransitions $

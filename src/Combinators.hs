@@ -10,6 +10,15 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 
 
+intersect :: FSA -> FSA -> FSA
+intersect = combine False
+
+compose :: FST -> FST -> FST
+compose = combine True
+
+product :: FSA -> FSA -> FST
+product = combine True
+
 transform :: (Hash a, Hash b) => (a -> b) -> FSM a -> FSM b
 transform f fsm = fsm
   { delta = M.map (M.fromList . map (\(a, b) -> (f a, b)) . M.toList) $ delta fsm

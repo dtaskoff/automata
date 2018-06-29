@@ -45,20 +45,19 @@ instance Expandable (Input, Output) where
     zip (expandLabel a ++ repeat "") $ expandLabel b ++ repeat ""
 
 class (Hash a, Hash b) => Combinable a b where
-  combine :: Hash c => Map a (Set c) -> Map a (Set c) -> Map b (Set (c, c))
+  combineTransitions :: Hash c => Map a (Set c) -> Map a (Set c) -> Map b (Set (c, c))
 
 -- | Intersection of FSAs
--- TODO: should disable looping epsilons before applying the construction
 instance Combinable Input Input where
-  combine = M.intersectionWith setCartesian
+  combineTransitions = M.intersectionWith setCartesian
 
 -- | Composition of FSTs
 instance Combinable (Input, Output) (Input, Output) where
-  combine = combineMaps (\(_, b) -> filter ((== b) . fst)) (\(a, _) (_, c) -> (a, c))
+  combineTransitions = combineMaps (\(_, b) -> filter ((== b) . fst)) (\(a, _) (_, c) -> (a, c))
 
 -- | Product of FSAs
 instance Combinable Input (Input, Output) where
-  combine = combineMaps (const id) (,)
+  combineTransitions = combineMaps (const id) (,)
 
 -- | Combine two maps given a way to match keys from them and merge their corresponding values
 combineMaps :: (Hash a, Hash b, Hash c) =>
