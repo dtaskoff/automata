@@ -60,3 +60,25 @@ replace alphabet fst = replace' ide fst
 
 replace' :: FST -> FST -> FST
 replace' ide fst = concatenate ide $ star $ concatenate fst ide
+
+conflictFree :: FST -> Bool
+conflictFree t =
+  let domaint = domain t
+      idomaint = identity domaint
+      s = project fst t
+      sstar = allOver s
+      splus = plus $ unions $ map (word . BS.singleton) $ S.toList s
+      isplus = identity splus
+      spluse = Combinators.product splus $ word BS.empty
+
+      prefixes = range $ compose idomaint $ concatenate isplus spluse
+      suffixes = range $ compose idomaint $ concatenate spluse isplus
+      overlaps = trim $ intersect prefixes suffixes
+
+      left = concatenates [splus, domaint, sstar]
+      right = concatenates [sstar, domaint, splus]
+      containments = intersect (union left right) domaint
+  in  S.null (project id overlaps) && S.null (project id containments)
+
+project :: (a -> BS.ByteString) -> FSM a -> Alphabet
+project p = S.fromList . concatMap (concatMap (BS.unpack . p) . M.keys) . M.elems . delta
