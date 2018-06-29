@@ -5,15 +5,14 @@ import FSA
 import FST
 import Types
 
-import Data.Hashable (Hashable)
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 
 
-transform :: (Eq a, Hashable a, Eq b, Hashable b) => (a -> b) -> FSM a -> FSM b
+transform :: (Hash a, Hash b) => (a -> b) -> FSM a -> FSM b
 transform f fsm = fsm
-  { delta = M.map (M.fromList . map (\(a, q) -> (f a, q)) . M.toList) $ delta fsm
+  { delta = M.map (M.fromList . map (\(a, b) -> (f a, b)) . M.toList) $ delta fsm
   }
 
 domain :: FST -> FSA

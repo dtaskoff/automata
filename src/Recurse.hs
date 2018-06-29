@@ -2,12 +2,11 @@ module Recurse where
 
 import Types
 
-import Data.Hashable (Hashable)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 
 
-recurse :: (Eq q, Hashable q, Eq b, Hashable b) =>
+recurse :: (Hash q, Hash b) =>
   [q] -> (q -> Map a q') -> ([q'] -> Set q) -> (Map q State -> Map a q' -> Map b (Set State)) ->
   (Set q, Map q State, TransitionTable b, Int)
 recurse initial aqs toSet rs =

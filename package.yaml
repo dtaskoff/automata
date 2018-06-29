@@ -29,6 +29,8 @@ dependencies:
 library:
   source-dirs: src
   default-extensions: FlexibleInstances, OverloadedStrings, TypeSynonymInstances
+  ghc-options:
+  - -O2
 
 executables:
   automata-exe:
@@ -36,17 +38,19 @@ executables:
     source-dirs:         app
     ghc-options:
     - -threaded
+    - -O2
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
     - automata
 
 tests:
-  fst-test:
+  automata-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
     - -threaded
+    - -O2
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:

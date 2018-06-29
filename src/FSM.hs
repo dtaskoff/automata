@@ -5,7 +5,6 @@ import Relation
 import Types
 
 import Data.Function (on)
-import Data.Hashable (Hashable)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 import Data.List (foldl1')
@@ -22,7 +21,7 @@ data FSM a = FSM
 
 
 -- | A machine which traverses only a single word
-word :: (Eq a, Hashable a) => a -> FSM a
+word :: Hash a => a -> FSM a
 word a = FSM
   { states = 2
   , initial = S.singleton 0
@@ -31,7 +30,7 @@ word a = FSM
   }
 
 -- | Regular opirations on FSMs
-union :: (Eq a, Hashable a) => FSM a -> FSM a -> FSM a
+union :: Hash a => FSM a -> FSM a -> FSM a
 union fsm fsm' =
   let fsm'' = rename (+ states fsm) fsm'
   in  FSM { states = states fsm + states fsm''
@@ -40,10 +39,10 @@ union fsm fsm' =
           , delta = unions' [ delta fsm, delta fsm'' ]
           }
 
-unions :: (Eq a, Hashable a) => [FSM a] -> FSM a
+unions :: Hash a => [FSM a] -> FSM a
 unions = foldl1' union
 
-concatenate :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a -> FSM a
+concatenate :: (Monoid a, Hash a) => FSM a -> FSM a -> FSM a
 concatenate fsm fsm' =
   let fsm'' = rename (+ states fsm) fsm'
   in  FSM { states = states fsm + states fsm''
@@ -55,15 +54,15 @@ concatenate fsm fsm' =
                             ]
           }
 
-concatenates :: (Eq a, Hashable a, Monoid a) => [FSM a] -> FSM a
+concatenates :: (Monoid a, Hash a) => [FSM a] -> FSM a
 concatenates = foldl1' concatenate
 
-star :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
+star :: (Monoid a, Hash a) => FSM a -> FSM a
 star fsm =
   let fsm' = plus fsm
-  in  fsm' { initial = S.singleton $ states fsm' - 1 }
+  in  fsm' { initial = S.singleton $ states fsm'-1 }
 
-plus :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
+plus :: (Monoid a, Hash a) => FSM a -> FSM a
 plus fsm =
   let q = states fsm
       sq = S.singleton q
@@ -77,17 +76,17 @@ plus fsm =
           }
 
 -- | Rename the states in a given FSM given a mapping function
-rename :: (Eq a, Hashable a) => (State -> State) -> FSM a -> FSM a
+rename :: Hash a => (State -> State) -> FSM a -> FSM a
 rename f fsm = fsm { initial = S.map f $ initial fsm
                    , terminal = S.map f $ terminal fsm
                    , delta = let delta' = M.map (M.map (S.map f)) $ delta fsm
                              in  M.fromList . map (\(p, m) -> (f p, m)) $ M.toList delta'
                    }
  
-removeEpsilonTransitions :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
+removeEpsilonTransitions :: (Monoid a, Hash a) => FSM a -> FSM a
 removeEpsilonTransitions fsm =
   let cf = lift $ transitiveClosure $
-        [(p, p) | p <- [0..states fsm - 1]] ++
+        [(p, p) | p <- [0..states fsm-1]] ++ -- reflexiveClosure
         [ (p, q) | (p, aqs) <- M.toList $ delta fsm
         , q <- p : S.toList (M.lookupDefault S.empty mempty aqs)
         ]
@@ -96,7 +95,7 @@ removeEpsilonTransitions fsm =
           , delta = M.filter (not . M.null) delta'
           }
 
-trim :: (Eq a, Hashable a, Monoid a) => FSM a -> FSM a
+trim :: Hash a => FSM a -> FSM a
 trim fsm =
   let r = transitiveClosure [ (p, q) | (p, aqs) <- M.toList $ delta fsm
                             , q <- concatMap S.toList aqs
@@ -116,37 +115,33 @@ trim fsm =
                              }
 
 -- | Transform to a one-letter machine
-expand :: (Eq a, Hashable a, Expandable a) => FSM a -> FSM a
+expand :: (Expandable a, Hash a) => FSM a -> FSM a
 expand fsm = foldr expandTransition fsm
   [ (q, w, r) | (q, wrs) <- M.toList $ delta fsm
   , (w, rs) <- M.toList $ M.filterWithKey (const . shouldExpand) wrs
   , r <- S.toList rs
   ]
 
-expandTransition :: (Eq a, Hashable a, Expandable a) => Transition a -> FSM a -> FSM a
+expandTransition :: (Expandable a, Hash a) => Transition a -> FSM a -> FSM a
 expandTransition (q, w, r) fsm =
   let n = size w
       delta' = M.adjust (M.delete w) q $ delta fsm
-  in  fsm { states = states fsm + n - 1
+  in  fsm { states = states fsm + n-1
           , delta = unions' [ delta'
                             , M.fromList [ (t, at') |
                                            (t, (a, t')) <- zip (q : [states fsm..]) $
-                                             zip (expandLabel w) $ [states fsm..states fsm + n - 2] ++ [r]
+                                             zip (expandLabel w) $ [states fsm..states fsm + n-2] ++ [r]
                                          , let at' = M.singleton a $ S.singleton t'
                                          ]
                             ]
           }
 
-etransitions :: (Eq a, Hashable a, Monoid a) => Set State -> Map a (Set State)
+etransitions :: (Monoid a, Hash a) => Set State -> Map a (Set State)
 etransitions = M.singleton mempty
 
-compose :: (Combinable a, Expandable a, Monoid a, Eq a, Hashable a) => FSM a -> FSM a -> FSM a
+compose :: (Combinable a, Expandable a, Monoid a, Hash a) => FSM a -> FSM a -> FSM a
 compose fsm fsm' =
-  let expand' fsme = fsme'
-        { delta = unions' [ delta fsme'
-                          , M.fromList $ map ((,) <*> etransitions . S.singleton) [0..states fsme'-1]
-                          ]
-        }
+  let expand' fsme = fsme' { delta = prepare (delta fsme') $ states fsme' }
         where fsme' = expand fsme
 
       fsme = expand' fsm
