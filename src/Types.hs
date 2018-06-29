@@ -44,29 +44,6 @@ instance Expandable (Input, Output) where
   expandLabel (a, b) = take (size (a, b)) $
     zip (expandLabel a ++ repeat "") $ expandLabel b ++ repeat ""
 
-class (Hash a, Hash b) => Combinable a b where
-  combineTransitions :: Hash c => Map a (Set c) -> Map a (Set c) -> Map b (Set (c, c))
-
--- | Intersection of FSAs
-instance Combinable Input Input where
-  combineTransitions = M.intersectionWith setCartesian
-
--- | Composition of FSTs
-instance Combinable (Input, Output) (Input, Output) where
-  combineTransitions = combineMaps (\(_, b) -> filter ((== b) . fst)) (\(a, _) (_, c) -> (a, c))
-
--- | Product of FSAs
-instance Combinable Input (Input, Output) where
-  combineTransitions = combineMaps (const id) (,)
-
--- | Combine two maps given a way to match keys from them and merge their corresponding values
-combineMaps :: (Hash a, Hash b, Hash c) =>
-  (a -> [a] -> [a]) -> (a -> a -> b) -> Map a (Set c) -> Map a (Set c) -> Map b (Set (c, c))
-combineMaps match merge aqs bqs = M.foldlWithKey' go M.empty aqs
-  where go m a qs = foldr (f a qs) m $ match a keys
-        f a qs b = M.insertWith S.union (merge a b) $ setCartesian qs (bqs M.! b)
-        keys = M.keys bqs
-
 loopEpsilons :: (Monoid a, Hash a) => TransitionTable a -> Int -> TransitionTable a
 loopEpsilons delta states = unions' [ delta, M.fromList [(p, etransitions $ S.singleton p) | p <- [0..states-1]] ]
 

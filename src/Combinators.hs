@@ -3,6 +3,7 @@ module Combinators where
 import FSM
 import FSA
 import FST
+import Relation
 import Types
 
 import qualified Data.ByteString.Lazy as BS
@@ -11,13 +12,21 @@ import qualified Data.HashSet as S
 
 
 intersect :: FSA -> FSA -> FSA
-intersect = combine False
+intersect = combine False $ M.intersectionWith setCartesian
 
 compose :: FST -> FST -> FST
-compose = combine True
+compose = combine True $ combineMaps (\(_, b) -> filter ((== b) . fst)) (\(a, _) (_, c) -> (a, c))
 
 product :: FSA -> FSA -> FST
-product = combine True
+product = combine True $ combineMaps (const id) (,)
+
+-- | Combine two maps given a way to match keys from them and merge their corresponding values
+combineMaps :: (Hash a, Hash b, Hash c) =>
+  (a -> [a] -> [a]) -> (a -> a -> b) -> Map a (Set c) -> Map a (Set c) -> Map b (Set (c, c))
+combineMaps match merge aqs bqs = M.foldlWithKey' go M.empty aqs
+  where go m a qs = foldr (f a qs) m $ match a keys
+        f a qs b = M.insertWith S.union (merge a b) $ setCartesian qs (bqs M.! b)
+        keys = M.keys bqs
 
 transform :: (Hash a, Hash b) => (a -> b) -> FSM a -> FSM b
 transform f fsm = fsm
