@@ -36,7 +36,7 @@ library:
   - -fno-warn-name-shadowing
 
 executables:
-  automata-exe:
+  fst-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
