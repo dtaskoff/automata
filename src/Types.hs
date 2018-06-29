@@ -6,6 +6,7 @@ import Data.Hashable (Hashable)
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
+import Data.List (foldl1')
 import Data.Word (Word8)
 
 
@@ -15,6 +16,14 @@ type Set a = S.HashSet a
 type Alphabet = Set Word8
 type Input = BS.ByteString
 type Output = BS.ByteString
+type State = Int
+type Transition a = (State, a, State)
+type TransitionTable a = Map State (Map a (Set State))
+
+-- | Construct a transition table containing all elements from a list of transition tables.
+unions' :: (Eq a, Hashable a) => [TransitionTable a] -> TransitionTable a
+unions' = foldl1' (M.unionWith (M.unionWith S.union))
+{-# INLINE unions' #-}
 
 class Expandable a where
   shouldExpand :: a -> Bool

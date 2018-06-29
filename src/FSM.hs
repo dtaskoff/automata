@@ -1,5 +1,6 @@
 module FSM where
 
+import Recurse
 import Relation
 import Types
 
@@ -9,15 +10,6 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 import Data.List (foldl1')
 
-
-type State = Int
-type Transition a = (State, a, State)
-type TransitionTable a = Map State (Map a (Set State))
-
--- | Construct a transition table containing all elements from a list of transition tables.
-unions' :: (Eq a, Hashable a) => [TransitionTable a] -> TransitionTable a
-unions' = foldl1' (M.unionWith (M.unionWith S.union))
-{-# INLINE unions' #-}
 
 data FSM a = FSM
   { states :: Int
@@ -58,7 +50,7 @@ concatenate fsm fsm' =
           , initial = initial fsm
           , terminal = terminal fsm''
           , delta = unions' [ delta fsm, delta fsm''
-                            , let ts = M.singleton mempty $ initial fsm''
+                            , let ts = etransitions $ initial fsm''
                               in  M.fromList [(t, ts) | t <- S.toList $ terminal fsm]
                             ]
           }
@@ -78,8 +70,8 @@ plus fsm =
   in  fsm { states = states fsm + 1
           , terminal = sq
           , delta = unions' [ delta fsm
-                            , M.singleton q $ M.singleton mempty $ initial fsm
-                            , let eq = M.singleton mempty sq
+                            , M.singleton q $ etransitions $ initial fsm
+                            , let eq = etransitions sq
                               in  M.fromList $ [(t, eq) | t <- S.toList $ terminal fsm]
                             ]
           }
@@ -145,40 +137,29 @@ expandTransition (q, w, r) fsm =
                             ]
           }
 
+etransitions :: (Eq a, Hashable a, Monoid a) => Set State -> Map a (Set State)
+etransitions = M.singleton mempty
+
 compose :: (Combinable a, Expandable a, Monoid a, Eq a, Hashable a) => FSM a -> FSM a -> FSM a
 compose fsm fsm' =
-  let fsme = expand fsm
-      fsme' = expand fsm'
-      fsmex = fsme { delta = unions' [ delta fsme
-                                     , M.fromList [(p, M.singleton mempty $ S.singleton p) | p <- [0..states fsme-1]]
-                                     ]
-                   }
-      fsmex' = fsme' { delta = unions' [ delta fsme'
-                                       , M.fromList [(p, M.singleton mempty $ S.singleton p) | p <- [0..states fsme'-1]]
-                                       ]
-                   }
-      aqs = M.lookupDefault M.empty
-      initial' = on cartesian (S.toList . initial) fsmex fsmex'
-      terminal' = on cartesian (S.toList . terminal) fsmex fsmex'
+  let expand' fsme = fsme'
+        { delta = unions' [ delta fsme'
+                          , M.fromList $ map ((,) <*> etransitions . S.singleton) [0..states fsme'-1]
+                          ]
+        }
+        where fsme' = expand fsme
 
-      go [] _ pslabels d _ n = (pslabels, d, n)
-      go ((q, q'):qs) ps pslabels d i n =
-        let ars = aqs q $ delta fsmex
-            ars' = aqs q' $ delta fsmex'
-            ars'' = combine ars ars'
-            nrs = S.unions (M.elems ars'') `S.difference` ps
-            nrss = S.toList nrs
-            pslabels' = M.fromList (zip nrss [n..]) `M.union` pslabels
-            d'' = if M.null ars''
-                  then M.empty
-                  else M.singleton i $ M.map (S.map (pslabels' M.!)) ars''
-            d' = unions' [d, d'']
-        in go (qs ++ nrss) (nrs `S.union` ps) pslabels' d' (i+1) (n + S.size nrs)
+      fsme = expand' fsm
+      fsme' = expand' fsm'
+      aqs q = M.lookupDefault M.empty q $ delta fsme
+      aqs' q' = M.lookupDefault M.empty q' $ delta fsme'
+      initial' = on cartesian (S.toList . initial) fsme fsme'
+      terminal' = on cartesian (S.toList . terminal) fsme fsme'
 
-      (pslabels, d, n) = go initial'
-                            (S.fromList initial')
-                            (M.fromList $ zip initial' [0..])
-                            M.empty 0 (length initial')
+      (_, pslabels, d, n) =
+        recurse initial' (\(q, q') -> combine (aqs q) (aqs' q')) S.unions $
+          \pslabels' -> M.map (S.map (pslabels' M.!))
+
   in  trim $ removeEpsilonTransitions $
         FSM { states = n
             , initial = S.fromList $ map (pslabels M.!) initial'

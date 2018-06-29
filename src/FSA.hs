@@ -1,6 +1,7 @@
 module FSA where
 
 import FSM
+import Recurse
 import Types
 
 import qualified Data.ByteString.Lazy as BS
@@ -30,22 +31,11 @@ determinise fsa =
       aqs = S.foldr (M.unionWith S.union) M.empty .
               S.map (\q -> M.lookupDefault M.empty q $ delta fsa')
 
-      go [] ps pslabels d i n = (ps, pslabels, d, n)
-      go (q:qs) ps pslabels d i n =
-        let ars = aqs q
-            nrs = S.fromList (M.elems ars) `S.difference` ps
-            nrss = S.toList nrs
-            pslabels' = M.fromList (zip nrss [n..]) `M.union` pslabels
-            d'' = if M.null ars
-                  then M.empty
-                  else M.singleton i $ M.fromList [(a, S.singleton (pslabels' M.! qs')) | (a, qs') <- M.toList ars]
-            d' = unions' [d, d'']
-        in  go (qs ++ nrss) (nrs `S.union` ps) pslabels' d' (i+1) (n + S.size nrs)
+      (ps, pslabels, d, n) =
+        recurse [initial fsa'] aqs S.fromList $
+          \pslabels' ars -> M.fromList
+            [(a, S.singleton (pslabels' M.! qs')) | (a, qs') <- M.toList ars]
 
-      (ps, pslabels, d, n) = go [initial fsa']
-                                (S.singleton (initial fsa'))
-                                (M.singleton (initial fsa') 0)
-                                M.empty 0 1
   in  trim $ FSM { states = n
                  , initial = S.singleton 0
                  , terminal = S.map (pslabels M.!) $ S.filter (not . null . (terminal fsa' `S.intersection`)) ps
