@@ -137,11 +137,9 @@ expandTransition (q, w, r) fsm =
           }
 
 combine :: (Expandable a, Monoid a, Monoid b, Hash a, Hash b) =>
-  Bool -> (Map a (Set State) -> Map a (Set State) -> Map b (Set (State, State))) -> FSM a -> FSM a -> FSM b
-combine loop combineTransitions fsm fsm' =
-  let expand' fsme = if loop
-                     then fsme' { delta = loopEpsilons (delta fsme') $ states fsme' }
-                     else fsme'
+  (Map a (Set State) -> Map a (Set State) -> Map b (Set (State, State))) -> FSM a -> FSM a -> FSM b
+combine combineTransitions fsm fsm' =
+  let expand' fsme = fsme' { delta = loopEpsilons (delta fsme') $ states fsme' }
         where fsme' = expand fsme
 
       fsme = expand' fsm

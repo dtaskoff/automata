@@ -12,13 +12,13 @@ import qualified Data.HashSet as S
 
 
 intersect :: FSA -> FSA -> FSA
-intersect = combine False $ M.intersectionWith setCartesian
+intersect = combine $ M.intersectionWith setCartesian
 
 compose :: FST -> FST -> FST
-compose = combine True $ combineMaps (\(_, b) -> filter ((== b) . fst)) (\(a, _) (_, c) -> (a, c))
+compose = combine $ combineMaps (\(_, b) -> filter ((== b) . fst)) (\(a, _) (_, c) -> (a, c))
 
 product :: FSA -> FSA -> FST
-product = combine True $ combineMaps (const id) (,)
+product = combine $ combineMaps (const id) (,)
 
 -- | Combine two maps given a way to match keys from them and merge their corresponding values
 combineMaps :: (Hash a, Hash b, Hash c) =>
