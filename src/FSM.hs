@@ -118,7 +118,7 @@ trim fsm =
 expand :: (Expandable a, Hash a) => FSM a -> FSM a
 expand fsm = foldr expandTransition fsm
   [ (q, w, r) | (q, wrs) <- M.toList $ delta fsm
-  , (w, rs) <- M.toList $ M.filterWithKey (const . shouldExpand) wrs
+  , (w, rs) <- M.toList $ M.filterWithKey (const . (> 1) . size) wrs
   , r <- S.toList rs
   ]
 
