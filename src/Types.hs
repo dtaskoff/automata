@@ -7,12 +7,17 @@ import qualified Data.ByteString.Lazy as BS
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 import Data.List (foldl1')
+import Data.String (fromString)
 import Data.Word (Word8)
 
 
 type Map k v = M.HashMap k v
 type Set a = S.HashSet a
 type Hash a = (Eq a, Hashable a)
+
+alphabet :: Alphabet
+alphabet = S.fromList $ BS.unpack $ fromString $
+  ['0'..'9'] ++ ['a'..'z'] ++ ['A'..'Z'] ++ "\n '(),.;"
 
 type Alphabet = Set Word8
 type Input = BS.ByteString

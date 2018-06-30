@@ -6,16 +6,11 @@ import Regex
 import Types
 
 import qualified Data.ByteString.Lazy as BS
-import qualified Data.HashSet as S
 import Data.Maybe (fromJust)
 import Data.String (fromString)
 
 
 type FSTRegex = Regex (Input, Output)
-
-alphabet :: Alphabet
-alphabet = S.fromList $ BS.unpack $ fromString $
-  ['0'..'9'] ++ ['a'..'z'] ++ ['A'..'Z'] ++ "\n '(),.;"
 
 digits :: [BS.ByteString]
 digits = map (fromString . show) [1..9 :: Int]
