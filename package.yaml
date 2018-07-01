@@ -40,10 +40,7 @@ executables:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
-    - -threaded
     - -O2
-    - -rtsopts
-    - -with-rtsopts=-N
     dependencies:
     - automata
 
@@ -52,9 +49,6 @@ tests:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
-    - -threaded
     - -O2
-    - -rtsopts
-    - -with-rtsopts=-N
     dependencies:
     - automata
