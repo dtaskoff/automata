@@ -97,12 +97,11 @@ removeEpsilonTransitions fsm =
 
 trim :: Hash a => FSM a -> FSM a
 trim fsm =
-  let r = transitiveClosure [ (p, q) | (p, aqs) <- M.toList $ delta fsm
-                            , q <- concatMap S.toList aqs
-                            ]
-      accessible = initial fsm `S.union` foldMap (lift r) (initial fsm)
-      coaccessible = terminal fsm `S.union`
-        S.fromMap (M.map (const ()) (M.filter (not . null . (`S.intersection` terminal fsm)) r))
+  let (r, r') = unzip [ ((p, q), (q, p)) | (p, aqs) <- M.toList $ delta fsm
+                      , q <- concatMap S.toList aqs
+                      ]
+      accessible = bfs (initial fsm) r
+      coaccessible = bfs (terminal fsm) r'
       states' = accessible `S.intersection` coaccessible
       initial' = initial fsm `S.intersection` states'
       terminal' = terminal fsm `S.intersection` states'
@@ -113,6 +112,17 @@ trim fsm =
                              , delta = M.map (M.map (S.filter (`S.member` states'))) .
                                  M.filterWithKey (const . (`S.member` states')) $ delta fsm
                              }
+
+bfs :: Hash a => Set a -> Relation a -> Set a
+bfs initial r =
+  let r' = toSet r
+      from x = M.lookupDefault S.empty x r'
+      go done [] = done
+      go done (x:xs) | x `S.member` done = go done xs
+      go done (x:xs) =
+        let done' = S.insert x done
+        in  go done' (xs ++ S.toList (from x `S.difference` done'))
+  in  go S.empty (S.toList initial)
 
 -- | Transform to a one-letter machine
 expand :: (Expandable a, Hash a) => FSM a -> FSM a
