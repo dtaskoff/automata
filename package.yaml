@@ -23,8 +23,6 @@ dependencies:
 - bytestring
 - hashable
 - unordered-containers
-- hspec
-- QuickCheck
 
 library:
   source-dirs: src
@@ -52,3 +50,5 @@ tests:
     - -O2
     dependencies:
     - automata
+    - hspec
+    - QuickCheck
