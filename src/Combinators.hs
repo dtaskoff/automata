@@ -63,17 +63,17 @@ replace' ide fst = concatenate ide $ star $ concatenate fst ide
 
 conflictFree :: FST -> Bool
 conflictFree t =
-  let domaint = domain t
+  let domaint = determinise $ domain t
       idomaint = identity domaint
       s = project fst t
       sstar = allOver s
-      splus = plus $ unions $ map (word . BS.singleton) $ S.toList s
+      splus = determinise $ plus $ unions $ map (word . BS.singleton) $ S.toList s
       isplus = identity splus
       spluse = Combinators.product splus $ word BS.empty
 
-      prefixes = range $ compose idomaint $ concatenate isplus spluse
-      suffixes = range $ compose idomaint $ concatenate spluse isplus
-      overlaps = trim $ intersect prefixes suffixes
+      prefixes = determinise $ range $ compose idomaint $ concatenate isplus spluse
+      suffixes = determinise $ range $ compose idomaint $ concatenate spluse isplus
+      overlaps = intersect prefixes suffixes
 
       left = concatenates [splus, domaint, sstar]
       right = concatenates [sstar, domaint, splus]
